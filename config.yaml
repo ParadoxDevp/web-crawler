@@ -1,0 +1,25 @@
+# config.yaml
+seed_urls:
+  - "http://example.com"
+
+allowed_domains: []
+
+max_depth: 3
+
+concurrent_requests: 3
+
+download_delay: 1.0
+
+timeout: 30
+
+retry_times: 3
+
+extraction_rules:
+  title: "h1::text"
+  description: "meta[name='description']::attr(content)"
+  links: "a::attr(href)"
+
+database_path: "data/crawler.db"
+
+log_file: "data/crawler.log"
+log_level: "INFO"
