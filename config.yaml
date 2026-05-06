@@ -1,6 +1,10 @@
 # config.yaml
 seed_urls:
-  - "http://example.com"
+  - "https://httpbin.org/html"
+  - "https://www.python.org"
+  - "https://github.com"
+  - "https://stackoverflow.com"
+  - "https://news.ycombinator.com"
 
 allowed_domains: []
 
