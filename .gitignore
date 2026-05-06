@@ -25,3 +25,9 @@ build/
 # Data files (keep .gitkeep)
 data/*
 !data/.gitkeep
+
+# Claude/AI files
+.claude/
+*.claude
+CLAUDE.md
+docs/superpowers/
