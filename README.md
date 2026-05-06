@@ -1,271 +1,102 @@
-# Web Crawler
+# Distributed Web Crawler
 
-A configurable web crawler built with Scrapy that extracts structured data from websites and stores it in SQLite.
+A clean, modular web crawler with real-time dashboard, bloom filter duplicate detection, and distributed worker support.
 
 ## Features
 
-- **Configurable crawling**: YAML-based configuration for URLs, depth, concurrency, and extraction rules
-- **CLI overrides**: Command-line arguments override config file settings
-- **SQLite storage**: Persistent storage with WAL mode for concurrent access
-- **Depth control**: Limit crawl depth to prevent excessive crawling
-- **Rate limiting**: Configurable download delays and concurrent requests
-- **Retry logic**: Automatic retry on failures
-- **Robots.txt compliance**: Respects website crawling policies
-- **Structured extraction**: CSS selector-based data extraction
-- **Comprehensive logging**: File and console logging with configurable levels
+- **Real-time Web Dashboard** - Monitor crawling at http://localhost:5000
+- **Bloom Filter** - Memory-efficient duplicate detection
+- **Distributed Workers** - Celery + Redis for parallel crawling
+- **Data Analysis** - Pandas statistics and matplotlib charts
+- **SQLAlchemy ORM** - Robust database layer
+- **Config Support** - YAML configuration with CLI overrides
+- **Clean Console** - Progress indicators without spam
+
+## Architecture
+
+4 core modules (~200 lines total):
+- `core_crawler.py` - Crawling logic + bloom filter
+- `data_ingestion.py` - SQLAlchemy database operations
+- `distributed_manager.py` - Redis queue + Celery tasks
+- `visualization.py` - Pandas analysis + matplotlib charts
+- `web_dashboard.py` - Flask real-time dashboard
 
 ## Installation
 
-1. Clone the repository:
 ```bash
-cd /home/nihal/MU/scripting_wkshp/final-project
-```
-
-2. Create and activate virtual environment:
-```bash
+# Clone and setup
+git clone <repo-url>
+cd final-project
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+source venv/bin/activate
 
-3. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-### Basic Usage
-
-Run with default configuration:
+### Default Crawl
 ```bash
-python crawler.py
+python main.py
+```
+Uses `config.yaml` settings, starts dashboard at http://localhost:5000
+
+### Custom Crawl
+```bash
+python main.py crawl --urls https://python.org --depth 2
 ```
 
-### CLI Options
-
+### Analyze Data
 ```bash
-python crawler.py --config config.yaml \
-                  --urls http://example.com http://example.org \
-                  --workers 5 \
-                  --delay 2.0 \
-                  --depth 2 \
-                  --log-level INFO
+python main.py analyze
+```
+Shows statistics, generates chart, exports CSV
+
+### Clear Data
+```bash
+python main.py clear
 ```
 
-**Available options:**
-- `--config`: Path to configuration file (default: `config.yaml`)
-- `--urls`: Override seed URLs (space-separated)
-- `--workers`: Number of concurrent requests
-- `--delay`: Download delay in seconds
-- `--depth`: Maximum crawl depth
-- `--log-level`: Logging level (DEBUG, INFO, WARNING, ERROR)
+### Distributed Crawl
+```bash
+# Terminal 1: Start workers
+celery -A distributed_manager worker --loglevel=info --concurrency=4
+
+# Terminal 2: Run crawler
+python main.py distributed --urls https://github.com
+```
+
+## Dashboard
+
+Visit http://localhost:5000 to see:
+- Real-time statistics (updates every 2s)
+- Depth distribution chart
+- Recent crawled pages
+- Click any row to see full captured data
 
 ## Configuration
 
-Edit `config.yaml` to customize crawler behavior:
-
+Edit `config.yaml`:
 ```yaml
-# Seed URLs to start crawling
 seed_urls:
-  - "http://example.com"
-
-# Restrict crawling to specific domains (empty = no restriction)
-allowed_domains: []
-
-# Maximum depth to crawl
+  - "https://python.org"
+  - "https://github.com"
 max_depth: 3
-
-# Number of concurrent requests
-concurrent_requests: 3
-
-# Delay between requests (seconds)
-download_delay: 1.0
-
-# Request timeout (seconds)
-timeout: 30
-
-# Number of retry attempts
-retry_times: 3
-
-# CSS selectors for data extraction
-extraction_rules:
-  title: "h1::text"
-  description: "meta[name='description']::attr(content)"
-  links: "a::attr(href)"
-
-# Database location
-database_path: "data/crawler.db"
-
-# Log file location
-log_file: "data/crawler.log"
-
-# Logging level
-log_level: "INFO"
 ```
 
-### Extraction Rules
+## Output
 
-Extraction rules use CSS selectors with Scrapy syntax:
-- `::text` - Extract text content
-- `::attr(name)` - Extract attribute value
-- Multiple selectors return lists
-
-Examples:
-```yaml
-extraction_rules:
-  title: "h1::text"
-  meta_description: "meta[name='description']::attr(content)"
-  all_links: "a::attr(href)"
-  paragraphs: "p::text"
-  images: "img::attr(src)"
+Console shows:
 ```
-
-## Database Query Examples
-
-The crawler stores data in SQLite at `data/crawler.db`. Access it using:
-
-```bash
-sqlite3 data/crawler.db
-```
-
-### Useful Queries
-
-**View all crawled pages:**
-```sql
-SELECT url, title, status_code, depth, crawled_at 
-FROM crawled_pages 
-ORDER BY crawled_at DESC;
-```
-
-**Count pages by depth:**
-```sql
-SELECT depth, COUNT(*) as page_count 
-FROM crawled_pages 
-GROUP BY depth 
-ORDER BY depth;
-```
-
-**Find pages with specific title:**
-```sql
-SELECT url, title 
-FROM crawled_pages 
-WHERE title LIKE '%search term%';
-```
-
-**Get recent crawls:**
-```sql
-SELECT url, title, crawled_at 
-FROM crawled_pages 
-WHERE crawled_at > datetime('now', '-1 hour')
-ORDER BY crawled_at DESC;
-```
-
-**View metadata:**
-```sql
-SELECT url, metadata_json 
-FROM crawled_pages 
-WHERE metadata_json IS NOT NULL;
-```
-
-**Export to CSV:**
-```sql
-.mode csv
-.output results.csv
-SELECT * FROM crawled_pages;
-.output stdout
-```
-
-### Database Schema
-
-```sql
-CREATE TABLE crawled_pages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT UNIQUE NOT NULL,
-    title TEXT,
-    text_content TEXT,
-    metadata_json TEXT,
-    crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status_code INTEGER,
-    depth INTEGER
-);
-```
-
-## Testing
-
-Run all tests:
-```bash
-pytest
-```
-
-Run specific test file:
-```bash
-pytest tests/test_config_loader.py
-pytest tests/test_db_manager.py
-pytest tests/test_spider.py
-pytest tests/test_pipeline.py
-pytest tests/test_integration.py
-```
-
-Run with verbose output:
-```bash
-pytest -v
-```
-
-Run with coverage:
-```bash
-pytest --cov=webcrawler
-```
-
-## Logs Location
-
-Logs are stored in two locations:
-
-1. **File logs**: `data/crawler.log` (configurable in `config.yaml`)
-   - Persistent logs for all crawl sessions
-   - Rotation recommended for production use
-
-2. **Console output**: Real-time logging to terminal
-   - Controlled by `--log-level` CLI argument or `log_level` in config
-
-**View logs:**
-```bash
-tail -f data/crawler.log
-```
-
-**Filter by level:**
-```bash
-grep ERROR data/crawler.log
-grep WARNING data/crawler.log
-```
-
-## Project Structure
-
-```
-.
-├── config.yaml              # Main configuration file
-├── crawler.py               # CLI entry point
-├── requirements.txt         # Python dependencies
-├── scrapy.cfg              # Scrapy project config
-├── data/                   # Data directory
-│   ├── crawler.db          # SQLite database
-│   └── crawler.log         # Log file
-├── webcrawler/             # Main package
-│   ├── __init__.py
-│   ├── config_loader.py    # Configuration management
-│   ├── db_manager.py       # Database operations
-│   ├── items.py            # Scrapy items
-│   ├── pipelines.py        # Data processing pipeline
-│   ├── settings.py         # Scrapy settings
-│   └── spiders/
-│       └── generic_spider.py  # Main spider
-└── tests/                  # Test suite
-    ├── test_config_loader.py
-    ├── test_db_manager.py
-    ├── test_spider.py
-    ├── test_pipeline.py
-    └── test_integration.py
+🌐 Starting dashboard at http://localhost:5000
+[Worker] Crawling: https://python.org (depth=0)
+✓ Crawled: https://python.org [200]
+✓ Saved: https://python.org
+✓ Crawl complete: {'crawled': 5, 'failed': 0, 'duplicates': 2}
+📊 View dashboard: http://localhost:5000
 ```
 
 ## License
 
-This project is provided as-is for educational purposes.
+Educational use only.
