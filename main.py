@@ -55,17 +55,23 @@ def main():
         print(f"\n✓ Crawl complete: {crawler.stats}")
         
     elif args.mode == 'distributed':
-        manager = DistributedManager()
-        manager.add_urls(urls)
-        
-        while manager.queue_size() > 0:
-            url = manager.get_next_url()
-            if url:
-                print(f"→ Dispatching: {url}")
-                crawl_task.delay(url)
-                time.sleep(0.5)
-        
-        print("\n✓ All tasks dispatched")
+        try:
+            manager = DistributedManager()
+            manager.add_urls(urls)
+            
+            while manager.queue_size() > 0:
+                url = manager.get_next_url()
+                if url:
+                    print(f"→ Dispatching: {url}")
+                    crawl_task.delay(url)
+                    time.sleep(0.5)
+            
+            print("\n✓ All tasks dispatched")
+        except Exception as e:
+            print("\n✗ Error: Redis server not running")
+            print("Start Redis with: redis-server")
+            print("Or use 'crawl' mode instead")
+            return
         
     elif args.mode == 'analyze':
         viz = Visualization()
